@@ -156,5 +156,6 @@ func (wr *WaitingRoom) RemoveExpiredSession() {
 		}
 
 		println("Session Cleaning Is Complete")
+		println("Number of user in waiting:", len(wr.users))
 	}
 }

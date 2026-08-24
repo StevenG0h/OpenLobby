@@ -4,6 +4,7 @@ import (
 	"OpenLobby/queue"
 	"log"
 
+	"github.com/gofiber/contrib/monitor"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
 )
@@ -14,6 +15,8 @@ func main() {
 	waitingRoom := queue.NewWaitingRoom()
 
 	app.Use(session.New())
+
+	app.Get("/metrics", monitor.New())
 
 	app.Get("/", func(ctx fiber.Ctx) error {
 		return ctx.SendFile("./views/index.html")

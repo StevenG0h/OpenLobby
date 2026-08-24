@@ -2,10 +2,10 @@ import http from 'k6/http';
 
 export const options = {
   discardResponseBodies: true,
-      duration: '600s',
-      vus: 150,
+      duration: '60s',
+      vus: 1000,
 };
 
 export default function () {
-  http.get('http://192.168.1.20:3000');
+  http.get('http://103.196.155.119:3000');
 }
