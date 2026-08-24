@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/contrib/monitor"
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/session"
 )
 
@@ -15,6 +16,11 @@ func main() {
 	waitingRoom := queue.NewWaitingRoom()
 
 	app.Use(session.New())
+
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5174"},
+		AllowCredentials: true,
+	}))
 
 	app.Get("/metrics", monitor.New())
 
@@ -30,7 +36,7 @@ func main() {
 		return validateToken(waitingRoom, ctx)
 	})
 
-	app.Get("/invalidate-token", func(ctx fiber.Ctx) error {
+	app.Post("/invalidate-token", func(ctx fiber.Ctx) error {
 		return invalidateToken(waitingRoom, ctx)
 	})
 
@@ -43,17 +49,13 @@ func requestToken(wr *queue.WaitingRoom, c fiber.Ctx) error {
 	session := c.Query("userId")
 
 	if session == "" {
-		return c.JSON(fiber.Map{
-			"error": "Session is not exists",
-		})
+		return fiber.NewError(fiber.StatusBadRequest, "Session is not exists")
 	}
 
 	token, err := wr.GetUserToken(session)
 
 	if err != nil {
-		return c.JSON(fiber.Map{
-			"error": err,
-		})
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(fiber.Map{
@@ -65,16 +67,12 @@ func validateToken(wr *queue.WaitingRoom, c fiber.Ctx) error {
 	token := c.Query("token")
 	session := c.Query("userId")
 	if token == "" {
-		return c.JSON(fiber.Map{
-			"error": "Token is required",
-		})
+		return fiber.NewError(fiber.StatusBadRequest, "Token is required")
 	}
 
 	isValid := wr.IsTokenValid(session, token)
 	if !isValid {
-		return c.JSON(fiber.Map{
-			"error": "Invalid or expired token",
-		})
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid or expired token")
 	}
 
 	return c.JSON(fiber.Map{
@@ -86,16 +84,12 @@ func invalidateToken(wr *queue.WaitingRoom, c fiber.Ctx) error {
 	token := c.Query("token")
 	session := c.Query("userId")
 	if token == "" {
-		return c.JSON(fiber.Map{
-			"error": "Token is required",
-		})
+		return fiber.NewError(fiber.StatusBadRequest, "Token is required")
 	}
 
 	err := wr.InvalidateToken(session, token)
 	if err != nil {
-		return c.JSON(fiber.Map{
-			"error": "Error invalidating token",
-		})
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid or expired token")
 	}
 
 	return c.JSON(fiber.Map{
