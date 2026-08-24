@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Waiting room</title>
+    </head>
+    <body>
+        <p>Please wait for a moment</p>
+    </body>
+</html>
+
+<script>
+    setInterval(function() {
+        fetch('/getToken')
+        .then(response => response.json())
+        .then(data => {
+            const token = data.token;
+            const userId = data.userId;
+
+            // Redirect to the validateToken endpoint with the token and userId as query parameters
+            window.location.href = `/validateToken?token=${token}&userId=${userId}`;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    },30000)
+</script>
