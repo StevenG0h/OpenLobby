@@ -8,6 +8,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/session"
+	"github.com/google/uuid"
 )
 
 func main() {
@@ -46,13 +47,20 @@ func main() {
 }
 
 func requestToken(wr *queue.WaitingRoom, c fiber.Ctx) error {
-	session := c.Query("userId")
+	session := session.FromContext(c)
 
-	if session == "" {
-		return fiber.NewError(fiber.StatusBadRequest, "Session is not exists")
+	if session.Get("userId") == "" {
+		userId := uuid.New()
+		wr.Join(userId.String())
+		session.Set("userID", userId)
+		return c.JSON(fiber.Map{
+			"message": "User has joined the queue please wait",
+		})
 	}
 
-	token, err := wr.GetUserToken(session)
+	sessionId := session.Get("userId").(string)
+
+	token, err := wr.GetUserToken(sessionId)
 
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
