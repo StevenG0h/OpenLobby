@@ -23,8 +23,8 @@ type WaitingRoom struct {
 
 func NewWaitingRoom() *WaitingRoom {
 	return &WaitingRoom{
-		users: make(map[string]User),
-		order: make([]string, 0),
+		users:      make(map[string]User),
+		activeUser: make(map[string]User),
 	}
 }
 
@@ -83,7 +83,7 @@ func (wr *WaitingRoom) GetUserToken(userID string) (string, error) {
 	wr.mu.Lock()
 	defer wr.mu.Unlock()
 
-	user, exists := wr.users[userID]
+	user, exists := wr.activeUser[userID]
 
 	if !exists {
 		return "", errors.New("User not in active list yet")
@@ -158,4 +158,28 @@ func (wr *WaitingRoom) RemoveExpiredSession() {
 		println("Session Cleaning Is Complete")
 		println("Number of user in waiting:", len(wr.users))
 	}
+}
+
+func (wr *WaitingRoom) PassthroughJoin(userId string) (string, bool, error) {
+	wr.mu.Lock()
+	defer wr.mu.Unlock()
+
+	if !(len(wr.activeUser) < 50 && len(wr.order) == 0) {
+		return "", false, nil
+	}
+
+	user := User{
+		ExpiredAt: time.Now().Add(15 * time.Minute),
+		ID:        userId,
+	}
+	token, err := utils.GenerateRandomString(32)
+	user.token = token
+
+	if err != nil {
+		return "", false, errors.New("Failed to generate token")
+	}
+
+	wr.activeUser[userId] = user
+
+	return token, true, nil
 }

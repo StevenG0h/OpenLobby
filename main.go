@@ -6,7 +6,6 @@ import (
 
 	"github.com/gofiber/contrib/monitor"
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/google/uuid"
 )
@@ -17,11 +16,6 @@ func main() {
 	waitingRoom := queue.NewWaitingRoom()
 
 	app.Use(session.New())
-
-	app.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5174"},
-		AllowCredentials: true,
-	}))
 
 	app.Get("/metrics", monitor.New())
 
@@ -49,16 +43,31 @@ func main() {
 func requestToken(wr *queue.WaitingRoom, c fiber.Ctx) error {
 	session := session.FromContext(c)
 
-	if session.Get("userId") == "" {
+	sessionId, ok := session.Get("userId").(string)
+	if !ok {
 		userId := uuid.New()
+
+		token, isPassThrough, err := wr.PassthroughJoin(userId.String())
+
+		if isPassThrough {
+			session.Set("userId", userId.String())
+			return c.JSON(fiber.Map{
+				"token":   token,
+				"session": userId.String(),
+			})
+		}
+
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+
 		wr.Join(userId.String())
-		session.Set("userID", userId)
+		session.Set("userId", userId.String())
+
 		return c.JSON(fiber.Map{
 			"message": "User has joined the queue please wait",
 		})
 	}
-
-	sessionId := session.Get("userId").(string)
 
 	token, err := wr.GetUserToken(sessionId)
 

@@ -7,5 +7,5 @@ export const options = {
 };
 
 export default function () {
-  http.get('http://103.196.155.119:3000');
+  http.get('http://localhost:3000/request');
 }
