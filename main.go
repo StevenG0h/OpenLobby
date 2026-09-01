@@ -81,12 +81,19 @@ func requestToken(wr *queue.WaitingRoom, c fiber.Ctx) error {
 
 func validateToken(wr *queue.WaitingRoom, c fiber.Ctx) error {
 	token := c.Query("token")
-	session := c.Query("userId")
+	session := session.FromContext(c)
+
+	sessionId, ok := session.Get("userId").(string)
+
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, "No session please redirect back")
+	}
+
 	if token == "" {
 		return fiber.NewError(fiber.StatusBadRequest, "Token is required")
 	}
 
-	isValid := wr.IsTokenValid(session, token)
+	isValid := wr.IsTokenValid(sessionId, token)
 	if !isValid {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid or expired token")
 	}
@@ -98,12 +105,19 @@ func validateToken(wr *queue.WaitingRoom, c fiber.Ctx) error {
 
 func invalidateToken(wr *queue.WaitingRoom, c fiber.Ctx) error {
 	token := c.Query("token")
-	session := c.Query("userId")
+	session := session.FromContext(c)
+
+	sessionId, ok := session.Get("userId").(string)
+
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, "No session please redirect back")
+	}
+
 	if token == "" {
 		return fiber.NewError(fiber.StatusBadRequest, "Token is required")
 	}
 
-	err := wr.InvalidateToken(session, token)
+	err := wr.InvalidateToken(sessionId, token)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid or expired token")
 	}
