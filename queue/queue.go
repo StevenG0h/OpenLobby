@@ -143,8 +143,8 @@ func (wr *WaitingRoom) RemoveExpiredSession() {
 
 	for t := range ticker.C {
 		println("Session Cleaner Is Running", t.Format(time.RFC1123))
-		wr.mu.Lock()
 		now := time.Now()
+		wr.mu.Lock()
 
 		for _, user := range wr.activeUser {
 			isExpired := user.ExpiredAt.Nanosecond() < now.Nanosecond()
@@ -154,6 +154,7 @@ func (wr *WaitingRoom) RemoveExpiredSession() {
 				wr.PopNext()
 			}
 		}
+		wr.mu.Unlock()
 
 		println("Session Cleaning Is Complete")
 		println("Number of user in waiting:", len(wr.users))

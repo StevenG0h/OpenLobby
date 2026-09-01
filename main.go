@@ -68,7 +68,6 @@ func requestToken(wr *queue.WaitingRoom, c fiber.Ctx) error {
 			"message": "User has joined the queue please wait",
 		})
 	}
-
 	token, err := wr.GetUserToken(sessionId)
 
 	if err != nil {
