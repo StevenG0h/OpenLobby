@@ -19,12 +19,14 @@ type WaitingRoom struct {
 	users      map[string]User
 	order      []string
 	activeUser map[string]User
+	maxUser    int
 }
 
-func NewWaitingRoom() *WaitingRoom {
+func NewWaitingRoom(maxUser int) *WaitingRoom {
 	return &WaitingRoom{
 		users:      make(map[string]User),
 		activeUser: make(map[string]User),
+		maxUser:    maxUser,
 	}
 }
 
@@ -49,6 +51,10 @@ func (wr *WaitingRoom) PopNext() (string, bool, error) {
 
 	if len(wr.order) == 0 {
 		return "", false, errors.New("Queue is empty")
+	}
+
+	if len(wr.activeUser) < wr.maxUser {
+		return "", false, errors.New("Queue still full please wait")
 	}
 
 	nextID := wr.order[0]
@@ -136,8 +142,8 @@ func (wr *WaitingRoom) InvalidateToken(userID string, token string) error {
 	return nil
 }
 
-func (wr *WaitingRoom) RemoveExpiredSession() {
-	ticker := time.NewTicker(30 * time.Second)
+func (wr *WaitingRoom) RemoveExpiredSession(interval time.Duration) {
+	ticker := time.NewTicker(interval * time.Second)
 
 	defer ticker.Stop()
 
@@ -165,7 +171,7 @@ func (wr *WaitingRoom) PassthroughJoin(userId string) (string, bool, error) {
 	wr.mu.Lock()
 	defer wr.mu.Unlock()
 
-	if !(len(wr.activeUser) < 50 && len(wr.order) == 0) {
+	if !(len(wr.activeUser) < wr.maxUser && len(wr.order) == 0) {
 		return "", false, nil
 	}
 

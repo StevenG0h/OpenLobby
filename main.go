@@ -2,10 +2,12 @@ package main
 
 import (
 	"OpenLobby/queue"
+	"OpenLobby/utils"
 	"log"
 
 	"github.com/gofiber/contrib/monitor"
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/google/uuid"
 )
@@ -13,9 +15,21 @@ import (
 func main() {
 	app := fiber.New()
 
-	waitingRoom := queue.NewWaitingRoom()
+	env, err := utils.LoadConfig()
+
+	if err != nil {
+		log.Fatal("Can't start OpenLobby due to invalid env config")
+		return
+	}
+
+	waitingRoom := queue.NewWaitingRoom(env.NumberOfAllowedUsers)
 
 	app.Use(session.New())
+
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     env.AllowedOrigins,
+		AllowCredentials: true,
+	}))
 
 	app.Get("/metrics", monitor.New())
 
@@ -35,9 +49,9 @@ func main() {
 		return invalidateToken(waitingRoom, ctx)
 	})
 
-	go waitingRoom.RemoveExpiredSession()
+	go waitingRoom.RemoveExpiredSession(env.RemoveExpiredSession)
 
-	log.Fatal(app.Listen(":3000"))
+	log.Fatal(app.Listen(":" + env.Port))
 }
 
 func requestToken(wr *queue.WaitingRoom, c fiber.Ctx) error {

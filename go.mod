@@ -3,14 +3,19 @@ module OpenLobby
 go 1.26.2
 
 require (
+	github.com/caarlos0/env/v11 v11.4.1
+	github.com/gofiber/contrib/monitor v0.1.2
+	github.com/gofiber/fiber/v3 v3.5.0
+	github.com/google/uuid v1.6.0
+	github.com/joho/godotenv v1.5.1
+)
+
+require (
 	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/ebitengine/purego v0.10.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
-	github.com/gofiber/contrib/monitor v0.1.2 // indirect
-	github.com/gofiber/fiber/v3 v3.5.0 // indirect
 	github.com/gofiber/schema v1.8.4 // indirect
 	github.com/gofiber/utils/v2 v2.4.2 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/compress v1.19.2 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260802145828-341c2f0c90b5 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
