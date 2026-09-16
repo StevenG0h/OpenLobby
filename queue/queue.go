@@ -3,6 +3,7 @@ package queue
 import (
 	"OpenLobby/utils"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -137,13 +138,14 @@ func (wr *WaitingRoom) InvalidateToken(userID string, token string) error {
 		return errors.New("Invalid token")
 	}
 
-	delete(wr.users, userID)
+	delete(wr.activeUser, userID)
 
 	return nil
 }
 
-func (wr *WaitingRoom) RemoveExpiredSession(interval time.Duration) {
-	ticker := time.NewTicker(interval * time.Second)
+func (wr *WaitingRoom) RemoveExpiredSession(interval int) {
+	fmt.Print(interval)
+	ticker := time.NewTicker(time.Duration(interval) * time.Second)
 
 	defer ticker.Stop()
 

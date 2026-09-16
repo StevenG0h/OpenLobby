@@ -18,6 +18,7 @@ func main() {
 	env, err := utils.LoadConfig()
 
 	if err != nil {
+		log.Fatal(err)
 		log.Fatal("Can't start OpenLobby due to invalid env config")
 		return
 	}
