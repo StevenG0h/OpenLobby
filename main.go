@@ -3,17 +3,30 @@ package main
 import (
 	"OpenLobby/queue"
 	"OpenLobby/utils"
-	"log"
+	"io"
+	"os"
 
 	"github.com/gofiber/contrib/monitor"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
 	app := fiber.New()
+	log := logrus.New()
+	file, err := os.OpenFile("app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+
+	if err != nil {
+		log.Error("Cannot create file", err)
+	}
+
+	mw := io.MultiWriter(os.Stdout, file)
+
+	log.SetOutput(mw)
+	log.SetLevel(logrus.InfoLevel)
 
 	env, err := utils.LoadConfig()
 
@@ -23,7 +36,7 @@ func main() {
 		return
 	}
 
-	waitingRoom := queue.NewWaitingRoom(env.NumberOfAllowedUsers)
+	waitingRoom := queue.NewWaitingRoom(env.NumberOfAllowedUsers, env.TokenDuration)
 
 	app.Use(session.New())
 
@@ -50,7 +63,7 @@ func main() {
 		return invalidateToken(waitingRoom, ctx)
 	})
 
-	go waitingRoom.RemoveExpiredSession(env.RemoveExpiredSession)
+	go waitingRoom.RemoveExpiredSession(env.RemoveExpiredSession, log)
 
 	log.Fatal(app.Listen(":" + env.Port))
 }
@@ -83,11 +96,16 @@ func requestToken(wr *queue.WaitingRoom, c fiber.Ctx) error {
 			"message": "User has joined the queue please wait",
 		})
 	}
-	token, err := wr.GetUserToken(sessionId)
 
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	isUserActive := wr.IsUserActive(sessionId)
+
+	if !isUserActive {
+		return c.JSON(fiber.Map{
+			"message": "User has joined the queue please wait",
+		})
 	}
+
+	token := wr.GetUserToken(sessionId)
 
 	return c.JSON(fiber.Map{
 		"token": token,

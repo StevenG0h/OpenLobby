@@ -3,9 +3,10 @@ package queue
 import (
 	"OpenLobby/utils"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type User struct {
@@ -16,18 +17,20 @@ type User struct {
 }
 
 type WaitingRoom struct {
-	mu         sync.Mutex
-	users      map[string]User
-	order      []string
-	activeUser map[string]User
-	maxUser    int
+	mu            sync.Mutex
+	users         map[string]User
+	order         []string
+	activeUser    map[string]User
+	maxUser       int
+	tokenDuration int
 }
 
-func NewWaitingRoom(maxUser int) *WaitingRoom {
+func NewWaitingRoom(maxUser int, tokenDuration int) *WaitingRoom {
 	return &WaitingRoom{
-		users:      make(map[string]User),
-		activeUser: make(map[string]User),
-		maxUser:    maxUser,
+		users:         make(map[string]User),
+		activeUser:    make(map[string]User),
+		maxUser:       maxUser,
+		tokenDuration: tokenDuration,
 	}
 }
 
@@ -46,27 +49,24 @@ func (wr *WaitingRoom) Join(userID string) {
 	wr.order = append(wr.order, userID)
 }
 
-func (wr *WaitingRoom) PopNext() (string, bool, error) {
-	wr.mu.Lock()
-	defer wr.mu.Unlock()
-
+func (wr *WaitingRoom) PopNext() (string, error) {
 	if len(wr.order) == 0 {
-		return "", false, errors.New("Queue is empty")
+		return "", errors.New("Queue is empty")
 	}
 
-	if len(wr.activeUser) < wr.maxUser {
-		return "", false, errors.New("Queue still full please wait")
+	if len(wr.activeUser) == wr.maxUser {
+		return "", errors.New("Queue still full please wait")
 	}
 
 	nextID := wr.order[0]
 	user := wr.users[nextID]
 
-	user.ExpiredAt = time.Now().Add(15 * time.Minute)
+	user.ExpiredAt = time.Now().Add(time.Duration(wr.tokenDuration) * time.Second)
 	token, err := utils.GenerateRandomString(32)
 	user.token = token
 
 	if err != nil {
-		return "", false, errors.New("Failed to generate token")
+		return "", errors.New("Failed to generate token")
 	}
 
 	wr.activeUser[nextID] = user
@@ -75,7 +75,7 @@ func (wr *WaitingRoom) PopNext() (string, bool, error) {
 
 	delete(wr.users, nextID)
 
-	return nextID, true, nil
+	return nextID, nil
 }
 
 func (wr *WaitingRoom) IsUserInLine(userID string) bool {
@@ -86,17 +86,13 @@ func (wr *WaitingRoom) IsUserInLine(userID string) bool {
 	return exists
 }
 
-func (wr *WaitingRoom) GetUserToken(userID string) (string, error) {
+func (wr *WaitingRoom) GetUserToken(userID string) string {
 	wr.mu.Lock()
 	defer wr.mu.Unlock()
 
-	user, exists := wr.activeUser[userID]
+	user := wr.activeUser[userID]
 
-	if !exists {
-		return "", errors.New("User not in active list yet")
-	}
-
-	return user.token, nil
+	return user.token
 }
 
 func (wr *WaitingRoom) IsUserActive(userID string) bool {
@@ -143,29 +139,43 @@ func (wr *WaitingRoom) InvalidateToken(userID string, token string) error {
 	return nil
 }
 
-func (wr *WaitingRoom) RemoveExpiredSession(interval int) {
-	fmt.Print(interval)
+func (wr *WaitingRoom) RemoveExpiredSession(interval int, log *logrus.Logger) {
 	ticker := time.NewTicker(time.Duration(interval) * time.Second)
 
 	defer ticker.Stop()
 
 	for t := range ticker.C {
-		println("Session Cleaner Is Running", t.Format(time.RFC1123))
+		log.Info("Session Cleaner Is Running", t.Format(time.RFC1123))
 		now := time.Now()
 		wr.mu.Lock()
 
+		if len(wr.activeUser) == 0 {
+			for i := 0; i < wr.maxUser; i++ {
+				_, err := wr.PopNext()
+
+				if err != nil {
+					log.Error(err)
+				}
+			}
+		}
+
 		for _, user := range wr.activeUser {
-			isExpired := user.ExpiredAt.Nanosecond() < now.Nanosecond()
+			isExpired := user.ExpiredAt.Before(now)
 
 			if isExpired {
-				delete(wr.users, user.ID)
-				wr.PopNext()
+				delete(wr.activeUser, user.ID)
+				_, err := wr.PopNext()
+
+				if err != nil {
+					log.Error(err)
+				}
 			}
 		}
 		wr.mu.Unlock()
 
-		println("Session Cleaning Is Complete")
-		println("Number of user in waiting:", len(wr.users))
+		log.Info("Session Cleaning Is Complete")
+		log.Info("Number of user in waiting:", len(wr.users))
+		log.Info("Number of active users:", len(wr.activeUser))
 	}
 }
 
@@ -178,9 +188,10 @@ func (wr *WaitingRoom) PassthroughJoin(userId string) (string, bool, error) {
 	}
 
 	user := User{
-		ExpiredAt: time.Now().Add(15 * time.Minute),
+		ExpiredAt: time.Now().Add(time.Duration(wr.tokenDuration) * time.Second),
 		ID:        userId,
 	}
+
 	token, err := utils.GenerateRandomString(32)
 	user.token = token
 
