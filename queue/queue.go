@@ -149,8 +149,10 @@ func (wr *WaitingRoom) RemoveExpiredSession(interval int, log *logrus.Logger) {
 		now := time.Now()
 		wr.mu.Lock()
 
-		if len(wr.activeUser) == 0 {
-			for i := 0; i < wr.maxUser; i++ {
+		numberOfActiveUsers := len(wr.activeUser)
+
+		if numberOfActiveUsers == 0 && len(wr.users) != 0 {
+			for i := 0; i < (wr.maxUser - numberOfActiveUsers); i++ {
 				_, err := wr.PopNext()
 
 				if err != nil {
