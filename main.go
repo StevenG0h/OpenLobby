@@ -65,7 +65,7 @@ func main() {
 
 	go waitingRoom.RemoveExpiredSession(env.RemoveExpiredSession, log)
 
-	log.Fatal(app.Listen(":" + env.Port))
+	log.Info(app.Listen(":" + env.Port))
 }
 
 func requestToken(wr *queue.WaitingRoom, c fiber.Ctx) error {
