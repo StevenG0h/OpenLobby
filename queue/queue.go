@@ -176,6 +176,7 @@ func (wr *WaitingRoom) RemoveExpiredSession(interval int, log *logrus.Logger) {
 		wr.mu.Unlock()
 
 		log.Info("Session Cleaning Is Complete")
+		log.Info("Cleanup duration:", time.Since(t))
 		log.Info("Number of user in waiting:", len(wr.users))
 		log.Info("Number of active users:", len(wr.activeUser))
 	}
